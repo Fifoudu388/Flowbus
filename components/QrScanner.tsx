@@ -9,6 +9,7 @@ export function QrScanner() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserQRCodeReader | null>(null);
+  const subscriptionRef = useRef<{ stop: () => void } | null>(null);
   const [status, setStatus] = useState('Prêt à scanner. Autorisez la caméra pour démarrer.');
 
   useEffect(() => {
@@ -29,7 +30,7 @@ export function QrScanner() {
             if (/^\/stop\/.+/.test(url.pathname)) {
               setStatus('QR code détecté. Redirection...');
               active = false;
-              reader.stopContinuousDecode();
+              subscriptionRef.current?.stop();
               router.push(url.pathname);
               return;
             }
@@ -40,16 +41,19 @@ export function QrScanner() {
         }
 
         if (error) {
-          setStatus('Scan actif... pointez la caméra vers un QR code d’arrêt.');
+          setStatus('Scan actif... pointez la caméra vers un QR code d'arrêt.');
         }
       })
+      .then((sub) => {
+        subscriptionRef.current = sub as { stop: () => void };
+      })
       .catch(() => {
-        setStatus('Impossible d’accéder à la caméra. Vérifiez les permissions.');
+        setStatus('Impossible d\'accéder à la caméra. Vérifiez les permissions.');
       });
 
     return () => {
       active = false;
-      reader.stopContinuousDecode();
+      subscriptionRef.current?.stop();
       readerRef.current = null;
     };
   }, [router]);
