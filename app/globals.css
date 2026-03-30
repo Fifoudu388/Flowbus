@@ -1,0 +1,144 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f4f6f8;
+  --card: #ffffff;
+  --text: #111827;
+  --muted: #6b7280;
+  --primary: #1666ff;
+  --secondary: #e8f0ff;
+  --border: #dbe2ea;
+  --ok: #16a34a;
+  --warn: #f59e0b;
+  --danger: #dc2626;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a;
+    --card: #111b31;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --primary: #61a5ff;
+    --secondary: #1c2a44;
+    --border: #24324b;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: radial-gradient(circle at top, #1b4b94 0%, var(--bg) 30%);
+  color: var(--text);
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.stack { display: grid; gap: 1rem; }
+.stack-sm { display: grid; gap: .5rem; }
+
+.card {
+  background: color-mix(in oklab, var(--card) 92%, black 0%);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  animation: fadeIn .25s ease;
+}
+
+.hero { margin-top: 12vh; text-align: left; }
+.eyebrow { color: var(--muted); text-transform: uppercase; font-size: .75rem; letter-spacing: .08em; margin: 0; }
+h1 { margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2.2rem); }
+p { margin: 0; line-height: 1.5; }
+
+.cta-grid { display: grid; gap: .75rem; margin-top: 1rem; }
+@media (min-width: 540px) { .cta-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+
+.btn {
+  border: 1px solid transparent;
+  text-decoration: none;
+  border-radius: .8rem;
+  padding: .75rem 1rem;
+  font-weight: 600;
+  text-align: center;
+  transition: transform .12s ease, opacity .2s ease;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-secondary { background: var(--secondary); color: var(--text); border-color: var(--border); }
+.btn-ghost { color: var(--text); border-color: var(--border); width: fit-content; }
+
+.search-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: .75rem;
+  padding: .9rem;
+  font-size: 1rem;
+  background: transparent;
+  color: inherit;
+}
+
+.helper-text { color: var(--muted); font-size: .92rem; }
+.stop-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; }
+.stop-item {
+  border: 1px solid var(--border);
+  border-radius: .75rem;
+  padding: .8rem;
+  text-decoration: none;
+  color: inherit;
+  display: grid;
+}
+.stop-item span { color: var(--muted); font-size: .9rem; }
+
+.camera-frame {
+  width: 100%;
+  min-height: 280px;
+  border-radius: .8rem;
+  background: #000;
+  border: 1px solid var(--border);
+}
+
+.refresh-indicator { color: var(--muted); font-size: .85rem; }
+.line-grid { display: grid; gap: .85rem; }
+@media (min-width: 840px) { .line-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.line-head { display: flex; justify-content: space-between; align-items: center; }
+.line-number {
+  font-weight: 700;
+  background: color-mix(in oklab, var(--primary) 15%, transparent);
+  padding: .3rem .55rem;
+  border-radius: .6rem;
+}
+.line-direction { font-size: .95rem; color: var(--muted); }
+.transport-icon { font-size: 1.2rem; }
+
+.status-pill {
+  width: fit-content;
+  border-radius: 999px;
+  padding: .2rem .55rem;
+  font-size: .82rem;
+  border: 1px solid transparent;
+}
+.status-pill.on_time { color: var(--ok); border-color: color-mix(in oklab, var(--ok) 35%, transparent); }
+.status-pill.minor_delay { color: var(--warn); border-color: color-mix(in oklab, var(--warn) 35%, transparent); }
+.status-pill.major_delay { color: var(--danger); border-color: color-mix(in oklab, var(--danger) 35%, transparent); }
+
+.arrival-chips { display: flex; gap: .5rem; flex-wrap: wrap; }
+.arrival-chip {
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  border: 1px solid var(--border);
+  padding: .35rem .6rem;
+  border-radius: 999px;
+  font-size: .9rem;
+}
+
+.error { border-color: color-mix(in oklab, var(--danger) 35%, transparent); }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
