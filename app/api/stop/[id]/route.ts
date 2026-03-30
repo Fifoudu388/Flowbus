@@ -18,24 +18,23 @@ interface Route {
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const stopId = params.id;
-  
+  const { id: stopId } = await params;
+
   // Récupère les arrivées temps réel
   const arrivals = await getStopArrivals(stopId);
-  
+
   // Enrichit avec les infos routes/trips (noms de lignes, destinations)
   const tripsCsv = await readGtfsFile('trips.txt');
   const routesCsv = await readGtfsFile('routes.txt');
-  
   const trips = parseCsv<Trip>(tripsCsv);
   const routes = parseCsv<Route>(routesCsv);
-  
+
   const enrichedArrivals = arrivals.map(arrival => {
     const trip = trips.find(t => t.trip_id === arrival.tripId);
     const route = routes.find(r => r.route_id === (trip?.route_id || arrival.routeId));
-    
+
     return {
       ...arrival,
       destination: trip?.trip_headsign || 'Destination inconnue',
@@ -50,7 +49,7 @@ export async function GET(
       delayMinutes: Math.round(arrival.delay / 60),
     };
   });
-  
+
   return NextResponse.json({
     stopId,
     arrivals: enrichedArrivals,
