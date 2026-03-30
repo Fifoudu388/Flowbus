@@ -13,7 +13,9 @@
     "clsx": "^2.1.1",
     "next": "15.2.4",
     "react": "19.0.0",
-    "react-dom": "19.0.0"
+    "react-dom": "19.0.0",
+    "gtfs-realtime-bindings": "^1.1.0",
+    "extract-zip": "^2.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
