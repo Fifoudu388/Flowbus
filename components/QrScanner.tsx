@@ -31,6 +31,7 @@ export function QrScanner() {
               setStatus('QR code détecté. Redirection...');
               active = false;
               subscriptionRef.current?.stop();
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               router.push(url.pathname as any);
               return;
             }
@@ -41,14 +42,14 @@ export function QrScanner() {
         }
 
         if (error) {
-          setStatus('Scan actif... pointez la caméra vers un QR code d\'arrêt.');
+          setStatus("Scan actif... pointez la caméra vers un QR code d'arrêt.");
         }
       })
       .then((sub) => {
         subscriptionRef.current = sub as { stop: () => void };
       })
       .catch(() => {
-        setStatus('Impossible d\'accéder à la caméra. Vérifiez les permissions.');
+        setStatus("Impossible d'accéder à la caméra. Vérifiez les permissions.");
       });
 
     return () => {
