@@ -31,7 +31,7 @@ export function QrScanner() {
               setStatus('QR code détecté. Redirection...');
               active = false;
               subscriptionRef.current?.stop();
-              router.push(url.pathname);
+              router.push(url.pathname as any);
               return;
             }
             setStatus('QR code valide détecté, mais URL non supportée.');
