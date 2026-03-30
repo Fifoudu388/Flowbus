@@ -1,48 +1,42 @@
-// lib/gtfs.ts
-import { promises as fs } from 'fs';
-import path from 'path';
-import extract from 'extract-zip';
+// app/api/search/route.ts
+import { NextResponse } from 'next/server';
+import { downloadGtfs, readGtfsFile, parseCsv } from '@/lib/gtfs';
 
-const GTFS_URL = 'https://gtfs.bus-tracker.fr/aura-38.zip';
-const GTFS_DIR = path.join(process.cwd(), 'data', 'gtfs');
-
-export async function downloadGtfs() {
-  try {
-    const response = await fetch(GTFS_URL);
-    if (!response.ok) throw new Error('Failed to download GTFS');
-    const buffer = await response.arrayBuffer();
-    const zipPath = path.join(process.cwd(), 'data', 'gtfs.zip');
-    await fs.mkdir(path.dirname(zipPath), { recursive: true });
-    await fs.writeFile(zipPath, Buffer.from(buffer));
-    await fs.mkdir(GTFS_DIR, { recursive: true });
-    await extract(zipPath, { dir: GTFS_DIR });
-    await fs.unlink(zipPath);
-    console.log('GTFS downloaded and extracted');
-  } catch (error) {
-    console.error('Error downloading GTFS:', error);
-  }
+interface Stop {
+  stop_id: string;
+  stop_name: string;
+  stop_lat: string;
+  stop_lon: string;
+  stop_code?: string;
 }
 
-export async function readGtfsFile(filename: string): Promise<string> {
-  const filePath = path.join(GTFS_DIR, filename);
-  try {
-    return await fs.readFile(filePath, 'utf-8');
-  } catch {
-    return '';
-  }
-}
+let initialized = false;
 
-// Parse CSV simple
-export function parseCsv<T>(csv: string, delimiter = ','): T[] {
-  const lines = csv.trim().split('\n');
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^"|"$/g, ''));
-  return lines.slice(1).map(line => {
-    const values = line.split(delimiter);
-    const obj: Record<string, string> = {};
-    headers.forEach((header, i) => {
-      obj[header] = values[i]?.replace(/^"|"$/g, '') || '';
-    });
-    return obj as T;
-  });
+export async function GET(request: Request) {
+  if (!initialized) {
+    await downloadGtfs();
+    initialized = true;
+  }
+
+  const { searchParams } = new URL(request.url);
+  const query = searchParams.get('q') || '';
+
+  if (!query || query.length < 2) {
+    return NextResponse.json(
+      { error: 'Query too short, minimum 2 characters' },
+      { status: 400 }
+    );
+  }
+
+  const stopsCsv = await readGtfsFile('stops.txt');
+  const stops = parseCsv<Stop>(stopsCsv);
+
+  const filtered = stops.filter(
+    (s) =>
+      s.stop_name.toLowerCase().includes(query.toLowerCase()) ||
+      s.stop_id.toLowerCase().includes(query.toLowerCase()) ||
+      (s.stop_code && s.stop_code.toLowerCase().includes(query.toLowerCase()))
+  );
+
+  return NextResponse.json(filtered);
 }
