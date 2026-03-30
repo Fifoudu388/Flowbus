@@ -20,45 +20,76 @@ export type StopRealtime = {
   lines: LineArrival[];
 };
 
-export function normalizeStop(raw: any): Stop | null {
-  const id = String(raw?.id ?? raw?.stop_id ?? '').trim();
-  const name = String(raw?.name ?? raw?.stop_name ?? '').trim();
-  if (!id || !name) return null;
+type JsonObject = Record<string, unknown>;
 
-  return {
-    id,
-    name,
-    city: raw?.city ?? raw?.municipality ?? raw?.zone ?? undefined,
-  };
+function asObject(value: unknown): JsonObject {
+  return typeof value === 'object' && value !== null ? (value as JsonObject) : {};
 }
 
-export function normalizeRealtime(raw: any, stopId: string): StopRealtime {
-  const stop = normalizeStop(raw?.stop ?? raw) ?? {
-    id: stopId,
-    name: raw?.stop_name ?? `Arrêt ${stopId}`,
-  };
+function readString(source: JsonObject, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed) return trimmed;
+    }
+  }
+  return '';
+}
 
-  const linesRaw = Array.isArray(raw?.lines) ? raw.lines : Array.isArray(raw?.departures) ? raw.departures : [];
+function readNumber(source: JsonObject, ...keys: string[]): number | undefined {
+  for (const key of keys) {
+    const parsed = Number(source[key]);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+function readArray(source: JsonObject, ...keys: string[]): unknown[] {
+  for (const key of keys) {
+    const value = source[key];
+    if (Array.isArray(value)) return value;
+  }
+  return [];
+}
+
+export function normalizeStop(raw: unknown): Stop | null {
+  const stop = asObject(raw);
+  const id = readString(stop, 'id', 'stop_id');
+  const name = readString(stop, 'name', 'stop_name');
+  if (!id || !name) return null;
+
+  const city = readString(stop, 'city', 'municipality', 'zone') || undefined;
+  return { id, name, city };
+}
+
+export function normalizeRealtime(raw: unknown, stopId: string): StopRealtime {
+  const root = asObject(raw);
+  const nestedStop = asObject(root.stop);
+
+  const stop = normalizeStop(nestedStop) ??
+    normalizeStop(root) ?? {
+      id: stopId,
+      name: readString(root, 'stop_name') || `Arrêt ${stopId}`,
+    };
+
+  const linesRaw = readArray(root, 'lines', 'departures');
 
   const lines: LineArrival[] = linesRaw
-    .map((item: any) => {
-      const arrivalsRaw = Array.isArray(item?.arrivals)
-        ? item.arrivals
-        : Array.isArray(item?.next_passages)
-          ? item.next_passages
-          : [];
+    .map((lineCandidate): LineArrival | null => {
+      const item = asObject(lineCandidate);
 
-      const arrivals = arrivalsRaw
-        .map((value: unknown) => Number(value))
-        .filter((value: number) => Number.isFinite(value) && value >= 0)
-        .sort((a: number, b: number) => a - b)
+      const arrivals = readArray(item, 'arrivals', 'next_passages')
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value) && value >= 0)
+        .sort((a, b) => a - b)
         .slice(0, 3);
 
-      const delaySeconds = Number(item?.delay_seconds ?? item?.delay ?? 0);
+      const delaySeconds = readNumber(item, 'delay_seconds', 'delay') ?? 0;
       const status: LineArrival['status'] =
         delaySeconds >= 300 ? 'major_delay' : delaySeconds >= 120 ? 'minor_delay' : 'on_time';
 
-      const modeValue = String(item?.mode ?? item?.type ?? 'bus').toLowerCase();
+      const modeValue = readString(item, 'mode', 'type').toLowerCase() || 'bus';
       const mode: LineArrival['mode'] =
         modeValue.includes('tram')
           ? 'tram'
@@ -70,13 +101,14 @@ export function normalizeRealtime(raw: any, stopId: string): StopRealtime {
                 ? 'bus'
                 : 'other';
 
-      const lineId = String(item?.line_id ?? item?.route_id ?? item?.id ?? '').trim();
-      const lineName = String(item?.line_name ?? item?.route_short_name ?? lineId).trim();
+      const lineId = readString(item, 'line_id', 'route_id', 'id');
+      const lineName = readString(item, 'line_name', 'route_short_name') || lineId;
       if (!lineId || !lineName) return null;
 
-      const direction = String(item?.direction ?? item?.headsign ?? 'Direction inconnue');
-      const passedMinutesRaw = Number(item?.passed_minutes ?? item?.last_passed_minutes);
-      const passedMinutes = Number.isFinite(passedMinutesRaw) && passedMinutesRaw >= 0 ? passedMinutesRaw : undefined;
+      const direction = readString(item, 'direction', 'headsign') || 'Direction inconnue';
+      const passedMinutesRaw = readNumber(item, 'passed_minutes', 'last_passed_minutes');
+      const passedMinutes =
+        typeof passedMinutesRaw === 'number' && passedMinutesRaw >= 0 ? passedMinutesRaw : undefined;
 
       return {
         lineId,
@@ -88,11 +120,12 @@ export function normalizeRealtime(raw: any, stopId: string): StopRealtime {
         passedMinutes,
       };
     })
-    .filter((line: LineArrival | null): line is LineArrival => line !== null);
+    .filter((line): line is LineArrival => line !== null);
 
+  const updatedAt = readString(root, 'updated_at') || new Date().toISOString();
   return {
     stop,
-    updatedAt: raw?.updated_at ?? new Date().toISOString(),
+    updatedAt,
     lines,
   };
 }
