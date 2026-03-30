@@ -41,7 +41,7 @@ export function QrScanner() {
         }
 
         if (error) {
-          setStatus('Scan actif... pointez la caméra vers un QR code d'arrêt.');
+          setStatus('Scan actif... pointez la caméra vers un QR code d\'arrêt.');
         }
       })
       .then((sub) => {
