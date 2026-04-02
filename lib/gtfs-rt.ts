@@ -48,11 +48,13 @@ export interface Arrival {
 let rtCache: RtCache | null = null;
 const CACHE_DURATION = 30_000;
 
+// Debug flag
+let sampleStopIdsLogged = false;
+
 // Fetch GTFS-RT
 export async function fetchGtfsRt(): Promise<FeedMessage | null> {
   const now = Date.now();
 
-  // Cache
   if (rtCache && now - rtCache.timestamp < CACHE_DURATION) {
     console.log('Using cached GTFS-RT');
     return rtCache.data;
@@ -61,7 +63,6 @@ export async function fetchGtfsRt(): Promise<FeedMessage | null> {
   try {
     console.log('Fetching GTFS-RT from:', GTFS_RT_URL);
 
-    // ⚠️ Pas de header Accept spécifique (serveur capricieux)
     const response = await fetch(GTFS_RT_URL);
 
     if (!response.ok) {
@@ -95,7 +96,6 @@ export async function fetchGtfsRt(): Promise<FeedMessage | null> {
       data.entity?.length || 0
     );
 
-    // Mise en cache
     rtCache = {
       data,
       timestamp: now,
@@ -104,8 +104,6 @@ export async function fetchGtfsRt(): Promise<FeedMessage | null> {
     return data;
   } catch (error) {
     console.error('Error fetching GTFS-RT:', error);
-
-    // fallback cache
     return rtCache?.data || null;
   }
 }
@@ -114,7 +112,13 @@ export async function fetchGtfsRt(): Promise<FeedMessage | null> {
 export async function getStopArrivals(
   stopId: string
 ): Promise<Arrival[]> {
-  console.log('Getting arrivals for stop ID:', stopId);
+  console.log(
+    'Getting arrivals for stop ID:',
+    stopId,
+    '(length:',
+    stopId.length,
+    ')'
+  );
 
   const rtData = await fetchGtfsRt();
 
@@ -130,39 +134,74 @@ export async function getStopArrivals(
 
   const arrivals: Arrival[] = [];
 
-  // Variantes de stopId (sécurité)
-  const stopIdVariations = [stopId, stopId.trim()];
+  // Debug: tous les stopIds
+  const allStopIdsInRt = new Set<string>();
 
-  rtData.entity.forEach((entity: FeedEntity) => {
+  rtData.entity.forEach((entity: FeedEntity, idx: number) => {
     if (!entity.tripUpdate?.stopTimeUpdate) return;
 
     entity.tripUpdate.stopTimeUpdate.forEach(
       (update: StopTimeUpdate) => {
+        // Stockage debug
+        allStopIdsInRt.add(update.stopId);
+
+        // Logs exemple
+        if (!sampleStopIdsLogged && idx < 5) {
+          console.log(
+            'Sample RT stopId:',
+            update.stopId,
+            '| Looking for:',
+            stopId,
+            '| Match?',
+            update.stopId === stopId
+          );
+        }
+
+        // Normalisation
+        const stopIdTrimmed = stopId.trim();
+        const updateStopIdTrimmed = update.stopId.trim();
+
+        // Match
         if (
-          stopIdVariations.includes(update.stopId) &&
+          stopIdTrimmed === updateStopIdTrimmed &&
           update.arrival
         ) {
+          console.log(
+            '✓ Match found! Stop:',
+            stopId,
+            'Trip:',
+            entity.tripUpdate!.trip.tripId,
+            'Time:',
+            new Date(
+              update.arrival.time * 1000
+            ).toLocaleTimeString('fr-FR')
+          );
+
           arrivals.push({
             tripId: entity.tripUpdate!.trip.tripId,
             routeId: entity.tripUpdate!.trip.routeId,
             arrivalTime: update.arrival.time,
             delay: update.arrival.delay || 0,
             direction:
-              entity.tripUpdate!.trip.directionId?.toString() || '',
+              entity.tripUpdate!.trip.directionId?.toString() ||
+              '',
           });
         }
       }
     );
   });
 
+  sampleStopIdsLogged = true;
+
   console.log(
-    'Total arrivals found for stop',
-    stopId,
-    ':',
-    arrivals.length
+    'Unique stop IDs in RT (sample):',
+    Array.from(allStopIdsInRt).slice(0, 10)
   );
 
-  // Tri par heure
+  console.log(
+    `Found ${arrivals.length} arrivals for stop ${stopId} out of ${rtData.entity.length} entities`
+  );
+
   return arrivals.sort(
     (a, b) => a.arrivalTime - b.arrivalTime
   );
