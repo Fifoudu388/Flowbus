@@ -1,8 +1,10 @@
 // app/api/stop/[id]/route.ts
+
 import { NextResponse } from 'next/server';
 import { getStopArrivals } from '@/lib/gtfs-rt';
 import { readGtfsFile, parseCsv } from '@/lib/gtfs';
 
+// Interfaces
 interface Trip {
   trip_id: string;
   trip_headsign: string;
@@ -15,26 +17,34 @@ interface Route {
   route_long_name: string;
   route_color?: string;
 }
+
+// Endpoint GET
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { id: stopId } = await params;
+
   console.log('Fetching arrivals for stop:', stopId);
 
-  // Récupère les arrivées temps réel
+  // Récupération des arrivées temps réel
   const arrivals = await getStopArrivals(stopId);
   console.log(`Found ${arrivals.length} arrivals for stop ${stopId}`);
 
-  // Enrichit avec les infos routes/trips
+  // Lecture des fichiers GTFS
   const tripsCsv = await readGtfsFile('trips.txt');
   const routesCsv = await readGtfsFile('routes.txt');
+
   const trips = parseCsv<Trip>(tripsCsv);
   const routes = parseCsv<Route>(routesCsv);
 
+  // Enrichissement des données
   const enrichedArrivals = arrivals.map((arrival) => {
     const trip = trips.find((t) => t.trip_id === arrival.tripId);
-    const route = routes.find((r) => r.route_id === (trip?.route_id || arrival.routeId));
+
+    const route = routes.find(
+      (r) => r.route_id === (trip?.route_id || arrival.routeId)
+    );
 
     return {
       ...arrival,
@@ -42,10 +52,13 @@ export async function GET(
       line: route?.route_short_name || '??',
       lineColor: route?.route_color,
       lineName: route?.route_long_name || 'Ligne inconnue',
-      scheduledTime: new Date(arrival.arrivalTime * 1000).toLocaleTimeString('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
+      scheduledTime: new Date(arrival.arrivalTime * 1000).toLocaleTimeString(
+        'fr-FR',
+        {
+          hour: '2-digit',
+          minute: '2-digit',
+        }
+      ),
       delayMinutes: Math.round(arrival.delay / 60),
     };
   });
