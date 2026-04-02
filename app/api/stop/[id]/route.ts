@@ -1,7 +1,7 @@
 // app/api/stop/[id]/route.ts
 import { NextResponse } from 'next/server';
 import { getStopArrivals } from '@/lib/gtfs-rt';
-import { readGtfsFile, parseCsv } from '@/lib/gtfs';
+import { readGtfsFile, parseCsv, getStopIdsForSearch } from '@/lib/gtfs';
 
 interface Trip {
   trip_id: string;
@@ -15,7 +15,6 @@ interface Route {
   route_long_name: string;
   route_color?: string;
 }
-
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -23,30 +22,21 @@ export async function GET(
   try {
     const { id: stopId } = await params;
     console.log('API called for stop ID:', stopId);
-
-    // Récupérer les arrivées temps réel
-    const arrivals = await getStopArrivals(stopId);
     
-    if (arrivals.length === 0) {
-      console.log('No real-time arrivals found for stop:', stopId);
-      return NextResponse.json({
-        stopId,
-        arrivals: [],
-        message: 'Aucun bus en approche pour cet arrêt actuellement',
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
+    // Récupérer tous les IDs (parent + enfants)
+    const allStopIds = await getStopIdsForSearch(stopId);
+    console.log('Will search for IDs:', allStopIds);
+    
+    // Récupérer les arrivées temps réel pour TOUS ces IDs
+    const arrivals = await getStopArrivals(allStopIds);
+    console.log(`Found ${arrivals.length} arrivals across all stops`);
+    
     // Lire les infos statiques pour enrichir
-    console.log('Reading static GTFS files...');
     const tripsCsv = await readGtfsFile('trips.txt');
     const routesCsv = await readGtfsFile('routes.txt');
-    
     const trips = parseCsv<Trip>(tripsCsv);
     const routes = parseCsv<Route>(routesCsv);
     
-    console.log('Found', trips.length, 'trips and', routes.length, 'routes in static data');
-
     const enrichedArrivals = arrivals.map((arrival) => {
       const trip = trips.find((t) => t.trip_id === arrival.tripId);
       const route = routes.find((r) => r.route_id === (trip?.route_id || arrival.routeId));
@@ -65,9 +55,10 @@ export async function GET(
         isDelayed: arrival.delay > 60,
       };
     });
-
+    
     return NextResponse.json({
       stopId,
+      allStopIdsSearched: allStopIds,
       arrivals: enrichedArrivals,
       updatedAt: new Date().toISOString(),
     });
