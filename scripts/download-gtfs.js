@@ -4,7 +4,7 @@ const path = require('path');
 const https = require('https');
 const { execSync } = require('child_process');
 
-const GTFS_URL = 'https://gtfs.bus-tracker.fr/aura-38.zip';
+const GTFS_URL = 'https://www.itinisere.fr/gtfs-aura.zip';
 const DATA_DIR = path.join(__dirname, '..', 'data', 'gtfs');
 
 async function downloadFile(url, dest) {
