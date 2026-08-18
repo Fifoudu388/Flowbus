@@ -3,7 +3,7 @@
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings';
 
 const GTFS_RT_URL =
-  'https://www.itinisere.fr/ftp/GtfsRT/GtfsRT.CG38.pb';
+  'https://gtfs.bus-tracker.fr/gtfs-rt-cg38.pb';
 
 // Types pour protobuf GTFS-RT
 
